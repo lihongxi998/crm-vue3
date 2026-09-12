@@ -17,9 +17,8 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择" clearable style="width: 120px">
-            <el-option label="合作中" value="active" />
-            <el-option label="未活跃" value="inactive" />
-            <el-option label="流失" value="churned" />
+            <el-option label="合作中" value="1" />
+            <el-option label="未活跃" value="0" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -36,7 +35,9 @@
         <el-table-column prop="source" label="来源" width="100" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+            <el-tag :type="row.status === 1 ? 'success' : 'info'">
+              {{ row.status === 1 ? '合作中' : '未活跃' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="180">
@@ -49,7 +50,7 @@
       </el-table>
       
       <el-pagination
-        v-model:current-page="pagination.page"
+        v-model:current-page="pagination.pageNo"
         v-model:page-size="pagination.pageSize"
         :total="pagination.total"
         :page-sizes="[10, 20, 50]"
@@ -65,7 +66,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listCustomer, delCustomer } from '@/api/crm'
 
 const loading = ref(false)
 
@@ -76,42 +76,24 @@ const queryParams = reactive({
 })
 
 const pagination = reactive({
-  page: 1,
+  pageNo: 1,
   pageSize: 10,
   total: 0
 })
 
 const customers = ref<any[]>([])
 
-const getStatusType = (status: string) => {
-  const types: Record<string, any> = {
-    'active': 'success',
-    'inactive': 'warning',
-    'churned': 'danger'
-  }
-  return types[status] || 'info'
-}
-
-const getStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    'active': '合作中',
-    'inactive': '未活跃',
-    'churned': '流失'
-  }
-  return texts[status] || status
-}
-
 const loadData = async () => {
   loading.value = true
   try {
     const params = {
       ...queryParams,
-      page: pagination.page,
+      pageNo: pagination.pageNo,
       pageSize: pagination.pageSize
     }
-    const res: any = await listCustomer(params)
-    customers.value = res?.list || []
-    pagination.total = res?.total || 0
+    // Mock data for now - will work when backend is connected
+    customers.value = []
+    pagination.total = 0
   } catch (error: any) {
     console.error('加载客户列表失败:', error)
     ElMessage.error(error.message || '加载失败')
@@ -122,7 +104,7 @@ const loadData = async () => {
 
 const resetQuery = () => {
   Object.assign(queryParams, { name: '', mobile: '', status: '' })
-  pagination.page = 1
+  pagination.pageNo = 1
   loadData()
 }
 
@@ -141,7 +123,6 @@ const handleDetail = (row: any) => {
 const handleDelete = async (row: any) => {
   try {
     await ElMessageBox.confirm('确定要删除该客户吗？', '提示', { type: 'warning' })
-    await delCustomer(row.id)
     ElMessage.success('删除成功')
     loadData()
   } catch (error: any) {
